@@ -1,3 +1,6 @@
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -16,8 +19,16 @@ public final class FDUtil {
    * @return a new set containing all trivial FDs over the given attributes
    */
   public static FDSet trivial(final Set<String> attrs) {
-    // TODO
-    return null;
+    FDSet trivialFDs = new FDSet();
+    List<Set<String>> powerSet = new ArrayList<>(powerSet(attrs));
+    for (Set<String> set1 : powerSet) {
+      for (Set<String> set2 : powerSet) {
+        if (set1.containsAll(set2) && !set1.isEmpty() && !set2.isEmpty()) { // set2 subset set1 => set1 -> set2
+          trivialFDs.add(new FD(set1, set2));
+        }
+      }
+    }
+    return trivialFDs;
   }
 
   /**
@@ -28,8 +39,20 @@ public final class FDUtil {
    * @return a set of augmented FDs
    */
   public static FDSet augment(final FDSet fdset, final Set<String> attrs) {
-    // TODO
-    return null;
+    FDSet fdClosure = new FDSet(fdset);
+    List<Set<String>> powerSet = new ArrayList<>(powerSet(attrs));
+
+    for (Set<String> augmenter : powerSet) {
+      if (augmenter.isEmpty()) continue;
+      for (FD fd : fdset) {
+        FD newFD = new FD(fd);
+        newFD.addToLeft(augmenter);
+        newFD.addToRight(augmenter);
+        fdClosure.add(newFD);
+      }
+    }
+
+    return fdClosure;
   }
 
   /**
@@ -39,8 +62,15 @@ public final class FDUtil {
    * @return all transitive FDs with respect to the input FD set
    */
   public static FDSet transitive(final FDSet fdset) {
-    // TODO
-    return null;
+    FDSet fdClosure = new FDSet(fdset);
+    for (FD fd1 : fdset) {
+      for (FD fd2 : fdset) {
+        if (fd1.getRight().equals(fd2.getLeft()))
+          fdClosure.add(new FD(fd1.getLeft(), fd2.getRight()));
+      }
+    }
+
+    return fdClosure;
   }
 
   /**
@@ -54,8 +84,32 @@ public final class FDUtil {
   public static FDSet fdSetClosure(final FDSet fdset) {
     FDSet current = new FDSet(fdset); // make a copy of F
 
-    // TODO
+    Set<String> attributes = getAttributes(fdset);
+    
+    current.addAll(trivial(attributes));
+    int prevSize;
+
+    do {
+      prevSize = current.size();
+      current.addAll(augment(current, attributes));
+      current.addAll(transitive(current));
+    } while (current.size() != prevSize);
+
     return current;
+  }
+
+  // returns a set of all attributes present in an FDSet
+  private static Set<String> getAttributes(FDSet fdset) {
+    Set<String> attributes = new HashSet<>();
+    for (FD fd : fdset) {
+      for (String attrib : fd.getLeft()) {
+        attributes.add(attrib);
+      }
+      for (String attrib : fd.getRight()) {
+        attributes.add(attrib);
+      }
+    }
+    return attributes;
   }
 
   /**
@@ -65,7 +119,27 @@ public final class FDUtil {
    * @return the power set of the input set
    */
   public static <E> Set<Set<E>> powerSet(final Set<E> set) {
-    // TODO
-    return null;
+    // this cant be an optimal implementation
+    // but this isnt algorithms
+    // so i dont care
+    E[] arr = (E[]) set.toArray();
+    Set<Set<E>> powerSet = new HashSet<>();
+    for (int i = 0; i < Math.pow(2, arr.length); i++) {
+      String binaryString = Integer.toBinaryString(i);
+      while (binaryString.length() < arr.length) {
+        binaryString = "0" + binaryString;
+      }
+      String[] binary = binaryString.split("");
+      Set<E> element = new HashSet<>();
+      for (int j = 0; j < arr.length; j++) {
+        int d = Integer.parseInt(binary[j]);
+        if (d == 1) {
+          element.add(arr[j]);
+        }
+      }
+      powerSet.add(element);
+    }
+
+    return powerSet;
   }
 }
